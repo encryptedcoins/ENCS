@@ -20,14 +20,18 @@ import           ENCOINS.ENCS.OffChain                          (encsToken, dist
 import           Utils.Address                                  (bech32ToAddress)
 
 
-mkDistribution :: ENCSParams -> [(Text, Integer)] -> DistributionValidatorParams
-mkDistribution _   []                = []
-mkDistribution par ((addrBech32, n) : lst) =
+mkDistribution :: ENCSParams -> [(Text, Integer)] -> Integer -> DistributionValidatorParams
+mkDistribution _   []                      _ = []
+mkDistribution par ((addrBech32, n) : lst) k =
         (TxOut (distributionValidatorAddress distribution) (scale m (encsToken par) + adaVal) NoOutputDatum Nothing,
         TxOut addr (scale n (encsToken par) + adaVal) NoOutputDatum Nothing) : distribution
     where
         adaVal       = lovelaceValueOf adaInDistributionUTXOs
-        distribution = mkDistribution par lst
-        m            = sum (map snd lst) + distributionFee * length lst
+        distribution = mkDistribution par lst (k-1)
+        m            = sum (map snd lst) + distributionFee * (k-1)
         addr         = fromJust $ bech32ToAddress addrBech32
 
+checkDistribution :: ENCSParams -> DistributionValidatorParams -> Value -> Bool
+checkDistribution _   []                    vTotal = zero == vTotal
+checkDistribution par ((utxo1, utxo2) : d)  vTotal = v    == vTotal && checkDistribution par d (vTotal - v)
+    where v = txOutValue utxo1 + txOutValue utxo2 + scale distributionFee (encsToken par)

@@ -40,6 +40,10 @@ distributionValidatorHash = validatorHash . distributionValidator
 distributionValidatorAddress :: DistributionValidatorParams -> Address
 distributionValidatorAddress = validatorAddress . distributionTypedValidator
 
+distributionValidatorAddresses :: DistributionValidatorParams -> [Address]
+distributionValidatorAddresses []         = []
+distributionValidatorAddresses par@(_:ds) = distributionValidatorAddress par : distributionValidatorAddresses ds
+
 distributionTx :: DistributionValidatorParams -> EncoinsTransactionBuilder ()
 distributionTx [] = failTx Nothing $> ()
 distributionTx ((utxoScript, utxoPubKey) : distribution) = do

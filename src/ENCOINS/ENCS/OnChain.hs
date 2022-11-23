@@ -32,8 +32,11 @@ import           Scripts.OneShotCurrency              (mkCurrency, oneShotCurren
 distributionFee :: Integer
 distributionFee = 100
 
+distributionFeeCount :: Integer
+distributionFeeCount = 1500
+
 adaInDistributionUTXOs :: Integer
-adaInDistributionUTXOs = 1_000_000
+adaInDistributionUTXOs = 1_500_000
 
 type DistributionValidatorParams = [(TxOut, TxOut)]
 
