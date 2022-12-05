@@ -10,24 +10,18 @@
 
 module ENCOINS.ENCS.OffChain where
 
-import           Control.Monad.State                            (State)
 import           Data.Functor                                   (($>))
 import           Ledger                                         (PaymentPubKeyHash (PaymentPubKeyHash), StakePubKeyHash (StakePubKeyHash))
 import           Ledger.Tokens                                  (token)
-import           Ledger.Typed.Scripts                           (Any)
 import           Ledger.Value                                   (AssetClass (..))
 import           Plutus.Script.Utils.V2.Scripts                 (validatorHash, scriptCurrencySymbol)
-import           Plutus.Script.Utils.V2.Typed.Scripts           (ValidatorTypes (..), validatorScript, validatorAddress)
+import           Plutus.Script.Utils.V2.Typed.Scripts           (validatorScript, validatorAddress)
 import           Plutus.V2.Ledger.Api
 import           PlutusTx.Prelude                               hiding ((<$>))
 
 import           ENCOINS.ENCS.OnChain
-import           Scripts.Constraints
-import           Types.TxConstructor                            (TxConstructor (..))
-
-
-type EncoinsTransaction = TxConstructor () Any (RedeemerType Any) (DatumType Any)
-type EncoinsTransactionBuilder a = State EncoinsTransaction a
+import           Constraints.OffChain
+import           Types.Tx                                       (TransactionBuilder)
 
 ------------------------------------- Distribution Validator --------------------------------------
 
@@ -44,7 +38,7 @@ distributionValidatorAddresses :: DistributionValidatorParams -> [Address]
 distributionValidatorAddresses []         = []
 distributionValidatorAddresses par@(_:ds) = distributionValidatorAddress par : distributionValidatorAddresses ds
 
-distributionTx :: DistributionValidatorParams -> EncoinsTransactionBuilder ()
+distributionTx :: DistributionValidatorParams -> TransactionBuilder ()
 distributionTx [] = failTx Nothing $> ()
 distributionTx ((utxoScript, utxoPubKey) : distribution) = do
     utxoProducedScriptTx (distributionValidatorHash distribution) Nothing (txOutValue utxoScript) ()
@@ -65,10 +59,10 @@ encsAssetClass par = AssetClass (encsCurrencySymbol par, encsTokenName)
 encsToken :: ENCSParams -> Value
 encsToken = token . encsAssetClass
 
-encsMintTx :: ENCSParams -> DistributionValidatorParams -> EncoinsTransactionBuilder ()
-encsMintTx par distribution = do
-    let v = scale encsTotalCount (encsToken par)
+encsMintTx :: ENCSParams -> DistributionValidatorParams -> TransactionBuilder ()
+encsMintTx par@(ref, amt) distribution = do
+    let v = scale amt (encsToken par)
     tokensMintedTx (encsPolicy par) () v
-    _ <- utxoSpentPublicKeyTx (\r _ -> par == r)
+    _ <- utxoSpentPublicKeyTx (\r _ -> ref == r)
     utxoProducedScriptTx (distributionValidatorHash distribution) Nothing v ()
         

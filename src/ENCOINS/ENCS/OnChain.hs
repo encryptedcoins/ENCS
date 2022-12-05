@@ -24,7 +24,7 @@ import           Plutus.V2.Ledger.Api
 import           PlutusTx                             (compile, applyCode, liftCode)
 import           PlutusTx.Prelude
 
-import           Scripts.Constraints                  (utxoProduced)
+import           Constraints.OnChain                  (utxoProduced)
 import           Scripts.OneShotCurrency              (mkCurrency, oneShotCurrencyPolicy)
 
 ------------------------------------- Distribution Validator --------------------------------------
@@ -35,8 +35,8 @@ distributionFee = 100
 distributionFeeCount :: Integer
 distributionFeeCount = 1500
 
-adaInDistributionUTXOs :: Integer
-adaInDistributionUTXOs = 1_500_000
+lovelaceInDistributionUTXOs :: Integer
+lovelaceInDistributionUTXOs = 1_500_000
 
 type DistributionValidatorParams = [(TxOut, TxOut)]
 
@@ -64,14 +64,11 @@ distributionTypedValidator par = mkTypedValidator @Distributing
 
 ------------------------------------- ENCS Minting Policy --------------------------------------
 
-encsTotalCount :: Integer
-encsTotalCount = 15_000_000
-
-type ENCSParams = TxOutRef
+type ENCSParams = (TxOutRef, Integer)
 
 {-# INLINABLE encsTokenName #-}
 encsTokenName :: TokenName
 encsTokenName = TokenName emptyByteString
 
 encsPolicy :: ENCSParams -> MintingPolicy
-encsPolicy ref = oneShotCurrencyPolicy $ mkCurrency ref [(encsTokenName, encsTotalCount)]
+encsPolicy (ref, amt) = oneShotCurrencyPolicy $ mkCurrency ref [(encsTokenName, amt)]

@@ -76,3 +76,41 @@ library
       uuid                                   -any
 
     hs-source-dirs: src
+
+test-suite encs-test
+  Type:                 exitcode-stdio-1.0
+  Default-Language:     Haskell2010
+  Hs-Source-Dirs:       test
+  ghc-options:
+      -rtsopts
+      -fwarn-redundant-constraints
+      -Wall
+      -Widentities
+      -Wincomplete-uni-patterns
+      -Wincomplete-record-updates
+      -Wnoncanonical-monad-instances
+      -Wredundant-constraints
+  Main-Is:              Main.hs
+  Other-Modules:        Tests.Distribution
+  Build-Depends:
+    base                                   -any,
+    aeson                                  -any,
+    bytestring                             -any,
+    cardano-api                            -any,
+    containers                             -any,
+    encs                                   -any,
+    generic-arbitrary                      -any,
+    plutus-common                          -any,
+    plutus-contract                        -any,
+    plutus-chain-index                     -any,
+    plutus-chain-index-core                -any,
+    plutus-tx-plugin                       -any,
+    plutus-tx                              -any,
+    plutus-ledger                          -any,
+    plutus-ledger-api                      -any,
+    plutus-ledger-constraints              -any,
+    plutus-script-utils                    -any,
+    plutus-use-cases                       -any,
+    QuickCheck                             -any,
+    random                                 -any,
+    text                                   -any

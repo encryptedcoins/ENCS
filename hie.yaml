@@ -2,3 +2,5 @@ cradle:
   cabal:
     - path: "src"
       component: "encs:lib:encs"
+    - path: "test"
+      component: "encs:test:encs-test"
