@@ -11,7 +11,7 @@
 module ENCOINS.ENCS.OffChain where
 
 import           Data.Functor                                   (($>))
-import           Ledger                                         (PaymentPubKeyHash (PaymentPubKeyHash), StakePubKeyHash (StakePubKeyHash))
+import           Ledger                                         (PaymentPubKeyHash (PaymentPubKeyHash), stakingCredential)
 import           Ledger.Tokens                                  (token)
 import           Ledger.Value                                   (AssetClass (..))
 import           Plutus.Script.Utils.V2.Scripts                 (validatorHash, scriptCurrencySymbol)
@@ -44,8 +44,8 @@ distributionTx ((utxoScript, utxoPubKey) : distribution) = do
     utxoProducedScriptTx (distributionValidatorHash distribution) Nothing (txOutValue utxoScript) ()
     let addr = txOutAddress utxoPubKey
     case addr of
-        Address (PubKeyCredential pkh) (Just (StakingHash (PubKeyCredential skh))) ->
-            utxoProducedPublicKeyTx (PaymentPubKeyHash pkh) (Just $ StakePubKeyHash skh) (txOutValue utxoPubKey) (Nothing :: Maybe ())
+        Address (PubKeyCredential pkh) _ ->
+            utxoProducedPublicKeyTx (PaymentPubKeyHash pkh) (stakingCredential addr) (txOutValue utxoPubKey) (Nothing :: Maybe ())
         _ -> failTx Nothing $> ()
 
 ------------------------------------- ENCS Minting Policy --------------------------------------
