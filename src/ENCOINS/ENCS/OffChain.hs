@@ -12,6 +12,7 @@ module ENCOINS.ENCS.OffChain where
 
 import           Data.Functor                                   (($>))
 import           Ledger                                         (PaymentPubKeyHash (PaymentPubKeyHash), stakingCredential)
+import           Ledger.Ada                                     (adaValueOf)
 import           Ledger.Tokens                                  (token)
 import           Ledger.Value                                   (AssetClass (..))
 import           Plutus.Script.Utils.V2.Scripts                 (validatorHash, scriptCurrencySymbol)
@@ -22,6 +23,7 @@ import           PlutusTx.Prelude                               hiding ((<$>))
 import           ENCOINS.ENCS.OnChain
 import           Constraints.OffChain
 import           Types.Tx                                       (TransactionBuilder)
+
 
 ------------------------------------- Distribution Validator --------------------------------------
 
@@ -64,5 +66,5 @@ encsMintTx par@(ref, amt) distribution = do
     let v = scale amt (encsToken par)
     tokensMintedTx (encsPolicy par) () v
     _ <- utxoSpentPublicKeyTx (\r _ -> ref == r)
-    utxoProducedScriptTx (distributionValidatorHash distribution) Nothing v ()
+    utxoProducedScriptTx (distributionValidatorHash distribution) Nothing (v + adaValueOf 2) ()
         
