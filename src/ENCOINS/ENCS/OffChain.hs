@@ -11,7 +11,8 @@
 module ENCOINS.ENCS.OffChain where
 
 import           Data.Functor                                   (($>))
-import           Ledger                                         (PaymentPubKeyHash (PaymentPubKeyHash), StakePubKeyHash (StakePubKeyHash))
+import           Ledger                                         (PaymentPubKeyHash (PaymentPubKeyHash), stakingCredential)
+import           Ledger.Ada                                     (adaValueOf)
 import           Ledger.Tokens                                  (token)
 import           Ledger.Value                                   (AssetClass (..))
 import           Plutus.Script.Utils.V2.Scripts                 (validatorHash, scriptCurrencySymbol)
@@ -22,6 +23,7 @@ import           PlutusTx.Prelude                               hiding ((<$>))
 import           ENCOINS.ENCS.OnChain
 import           Constraints.OffChain
 import           Types.Tx                                       (TransactionBuilder)
+
 
 ------------------------------------- Distribution Validator --------------------------------------
 
@@ -44,8 +46,8 @@ distributionTx ((utxoScript, utxoPubKey) : distribution) = do
     utxoProducedScriptTx (distributionValidatorHash distribution) Nothing (txOutValue utxoScript) ()
     let addr = txOutAddress utxoPubKey
     case addr of
-        Address (PubKeyCredential pkh) (Just (StakingHash (PubKeyCredential skh))) ->
-            utxoProducedPublicKeyTx (PaymentPubKeyHash pkh) (Just $ StakePubKeyHash skh) (txOutValue utxoPubKey) (Nothing :: Maybe ())
+        Address (PubKeyCredential pkh) _ ->
+            utxoProducedPublicKeyTx (PaymentPubKeyHash pkh) (stakingCredential addr) (txOutValue utxoPubKey) (Nothing :: Maybe ())
         _ -> failTx Nothing $> ()
 
 ------------------------------------- ENCS Minting Policy --------------------------------------
@@ -62,7 +64,7 @@ encsToken = token . encsAssetClass
 encsMintTx :: ENCSParams -> DistributionValidatorParams -> TransactionBuilder ()
 encsMintTx par@(ref, amt) distribution = do
     let v = scale amt (encsToken par)
-    tokensMintedTx (encsPolicy par) () v
     _ <- utxoSpentPublicKeyTx (\r _ -> ref == r)
-    utxoProducedScriptTx (distributionValidatorHash distribution) Nothing v ()
+    utxoProducedScriptTx (distributionValidatorHash distribution) Nothing (v + adaValueOf 2) ()
+    tokensMintedTx (encsPolicy par) () v
         
