@@ -11,10 +11,12 @@
 module ENCOINS.ENCS.OffChain where
 
 import           Data.Functor                                   (($>))
+import           Data.Maybe                                     (fromJust)
 import           Ledger                                         (PaymentPubKeyHash (PaymentPubKeyHash), stakingCredential)
 import           Ledger.Ada                                     (adaValueOf)
 import           Ledger.Tokens                                  (token)
-import           Ledger.Value                                   (AssetClass (..))
+import           Ledger.Tx                                      (DecoratedTxOut(..), Versioned (..), _decoratedTxOutAddress)
+import           Ledger.Value                                   (AssetClass (..), geq)
 import           Plutus.Script.Utils.V2.Scripts                 (validatorHash, scriptCurrencySymbol)
 import           Plutus.Script.Utils.V2.Typed.Scripts           (validatorScript, validatorAddress)
 import           Plutus.V2.Ledger.Api
@@ -23,7 +25,6 @@ import           PlutusTx.Prelude                               hiding ((<$>))
 import           ENCOINS.ENCS.OnChain
 import           Constraints.OffChain
 import           Types.Tx                                       (TransactionBuilder)
-
 
 ------------------------------------- Distribution Validator --------------------------------------
 
@@ -42,8 +43,13 @@ distributionValidatorAddresses par@(_:ds) = distributionValidatorAddress par : d
 
 distributionTx :: DistributionValidatorParams -> TransactionBuilder ()
 distributionTx [] = failTx Nothing $> ()
-distributionTx ((utxoScript, utxoPubKey) : distribution) = do
-    utxoProducedScriptTx (distributionValidatorHash distribution) Nothing (txOutValue utxoScript) ()
+distributionTx d@((utxoScript, utxoPubKey) : d') = do
+    let val   = txOutValue utxoScript + txOutValue utxoPubKey
+        addrs = distributionValidatorAddresses d
+    -- FIX HERE: The next line can cause problems in some cases.
+    _ <- utxoSpentScriptTx (\_ o -> _decoratedTxOutValue o `geq` val && _decoratedTxOutAddress o `elem` addrs)
+        (\_ o -> unversioned $  fromJust $ _decoratedTxOutValidator o) (const . const $ ())
+    utxoProducedScriptTx (distributionValidatorHash d') Nothing (txOutValue utxoScript) ()
     let addr = txOutAddress utxoPubKey
     case addr of
         Address (PubKeyCredential pkh) _ ->
