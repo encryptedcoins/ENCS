@@ -64,7 +64,7 @@ encsToken = token . encsAssetClass
 encsMintTx :: ENCSParams -> DistributionValidatorParams -> TransactionBuilder ()
 encsMintTx par@(ref, amt) distribution = do
     let v = scale amt (encsToken par)
-    tokensMintedTx (encsPolicy par) () v
     _ <- utxoSpentPublicKeyTx (\r _ -> ref == r)
     utxoProducedScriptTx (distributionValidatorHash distribution) Nothing (v + adaValueOf 2) ()
+    tokensMintedTx (encsPolicy par) () v
         
