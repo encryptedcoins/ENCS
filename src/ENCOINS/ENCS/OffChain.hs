@@ -16,7 +16,7 @@ import           Ledger                                         (PaymentPubKeyHa
 import           Ledger.Ada                                     (adaValueOf)
 import           Ledger.Tokens                                  (token)
 import           Ledger.Tx                                      (DecoratedTxOut(..), Versioned (..), _decoratedTxOutAddress)
-import           Ledger.Value                                   (AssetClass (..), geq)
+import           Ledger.Value                                   (AssetClass (..), geq, noAdaValue)
 import           Plutus.Script.Utils.V2.Scripts                 (validatorHash, scriptCurrencySymbol)
 import           Plutus.Script.Utils.V2.Typed.Scripts           (validatorScript, validatorAddress)
 import           Plutus.V2.Ledger.Api
@@ -47,7 +47,7 @@ distributionTx d@((utxoScript, utxoPubKey) : d') = do
     let val   = txOutValue utxoScript + txOutValue utxoPubKey
         addrs = distributionValidatorAddresses d
     -- FIX HERE: The next line can cause problems in some cases.
-    _ <- utxoSpentScriptTx (\_ o -> _decoratedTxOutValue o `geq` val && _decoratedTxOutAddress o `elem` addrs)
+    _ <- utxoSpentScriptTx (\_ o -> noAdaValue (_decoratedTxOutValue o) `geq` noAdaValue val && _decoratedTxOutAddress o `elem` addrs)
         (\_ o -> unversioned $  fromJust $ _decoratedTxOutValidator o) (const . const $ ())
     utxoProducedScriptTx (distributionValidatorHash d') Nothing (txOutValue utxoScript) ()
     let addr = txOutAddress utxoPubKey
