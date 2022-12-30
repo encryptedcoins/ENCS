@@ -42,7 +42,7 @@ distributionValidatorAddresses []         = []
 distributionValidatorAddresses par@(_:ds) = distributionValidatorAddress par : distributionValidatorAddresses ds
 
 distributionTx :: DistributionValidatorParams -> TransactionBuilder ()
-distributionTx [] = failTx Nothing $> ()
+distributionTx [] = failTx "distributionTx" "empty DistributionValidatorParams" Nothing $> ()
 distributionTx d@((utxoScript, utxoPubKey) : d') = do
     let val   = txOutValue utxoScript + txOutValue utxoPubKey
         addrs = distributionValidatorAddresses d
@@ -54,7 +54,7 @@ distributionTx d@((utxoScript, utxoPubKey) : d') = do
     case addr of
         Address (PubKeyCredential pkh) _ ->
             utxoProducedPublicKeyTx (PaymentPubKeyHash pkh) (stakingCredential addr) (txOutValue utxoPubKey) (Nothing :: Maybe ())
-        _ -> failTx Nothing $> ()
+        _ -> failTx "distributionTx" "Address doesn't has a PubKeyCredential" Nothing $> ()
 
 ------------------------------------- ENCS Minting Policy --------------------------------------
 
