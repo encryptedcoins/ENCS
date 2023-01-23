@@ -11,8 +11,7 @@
 module ENCOINS.ENCS.OffChain where
 
 import           Data.Functor                                   (($>))
-import           Data.Maybe                                     (fromJust)
-import           Ledger                                         (PaymentPubKeyHash (PaymentPubKeyHash), stakingCredential)
+import           Ledger                                         (PaymentPubKeyHash (PaymentPubKeyHash), stakingCredential, Language (PlutusV2))
 import           Ledger.Ada                                     (adaValueOf)
 import           Ledger.Tokens                                  (token)
 import           Ledger.Tx                                      (DecoratedTxOut(..), Versioned (..), _decoratedTxOutAddress)
@@ -49,7 +48,7 @@ distributionTx d@((utxoScript, utxoPubKey) : d') = do
     -- FIX HERE: The next line can cause problems in some cases.
     _ <- utxoSpentScriptTx 
         (\_ o -> noAdaValue (_decoratedTxOutValue o) `geq` noAdaValue val && _decoratedTxOutAddress o `elem` addrs)
-        (const . const $ distributionValidator d) 
+        (const . const $ (`Versioned` PlutusV2) $ distributionValidator d) 
         (const . const $ ())
     utxoProducedScriptTx (distributionValidatorHash d') Nothing (txOutValue utxoScript) ()
     let addr = txOutAddress utxoPubKey
@@ -74,5 +73,5 @@ encsMintTx par@(ref, amt) distribution = do
     let v = scale amt (encsToken par)
     _ <- utxoSpentPublicKeyTx (\r _ -> ref == r)
     utxoProducedScriptTx (distributionValidatorHash distribution) Nothing (v + adaValueOf 2) ()
-    tokensMintedTx (encsPolicy par) () v
+    tokensMintedTx ((`Versioned` PlutusV2) $ encsPolicy par) () v
         

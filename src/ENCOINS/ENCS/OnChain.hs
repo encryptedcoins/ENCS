@@ -19,14 +19,14 @@
 
 module ENCOINS.ENCS.OnChain where
 
-import           Plutus.Script.Utils.V2.Typed.Scripts (ValidatorTypes (..), TypedValidator, mkTypedValidator, mkUntypedValidator)
+import           Plutus.Script.Utils.V2.Typed.Scripts (ValidatorTypes (..), TypedValidator, mkTypedValidator)
 import           Plutus.V2.Ledger.Api
 import           PlutusTx                             (compile, applyCode, liftCode)
 import           PlutusTx.Prelude
 
 import           Constraints.OnChain                  (utxoProduced)
 import           Scripts.OneShotCurrency              (mkCurrency, oneShotCurrencyPolicy)
-
+import           Plutus.Script.Utils.Typed            (mkUntypedValidator)
 ------------------------------------- Distribution Validator --------------------------------------
 
 distributionFee :: Integer
@@ -60,7 +60,7 @@ distributionTypedValidator par = mkTypedValidator @Distributing
     `PlutusTx.applyCode` PlutusTx.liftCode par)
     $$(PlutusTx.compile [|| wrap ||])
   where
-    wrap = mkUntypedValidator @() @()
+    wrap = mkUntypedValidator @ScriptContext @() @()
 
 ------------------------------------- ENCS Minting Policy --------------------------------------
 
