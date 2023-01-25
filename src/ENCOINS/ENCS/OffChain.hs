@@ -14,11 +14,8 @@ import           Data.Functor                                   (($>))
 import           Data.Maybe                                     (fromJust)
 import           Ledger                                         (PaymentPubKeyHash (PaymentPubKeyHash), stakingCredential)
 import           Ledger.Ada                                     (adaValueOf)
-import           Ledger.Tokens                                  (token)
-import           Ledger.Tx                                      (DecoratedTxOut(..), Versioned (..), _decoratedTxOutAddress)
-import           Ledger.Value                                   (AssetClass (..), geq, noAdaValue)
-import           Plutus.Script.Utils.V2.Scripts                 (validatorHash, scriptCurrencySymbol)
-import           Plutus.Script.Utils.V2.Typed.Scripts           (validatorScript, validatorAddress)
+import           Ledger.Tx                                      (DecoratedTxOut(..), _decoratedTxOutAddress)
+import           Ledger.Value                                   (geq, noAdaValue)
 import           Plutus.V2.Ledger.Api
 import           PlutusTx.Prelude                               hiding ((<$>))
 
@@ -28,19 +25,6 @@ import           Types.Tx                                       (TransactionBuil
 
 ------------------------------------- Distribution Validator --------------------------------------
 
-distributionValidator :: DistributionValidatorParams -> Validator
-distributionValidator = validatorScript . distributionTypedValidator
-
-distributionValidatorHash :: DistributionValidatorParams -> ValidatorHash
-distributionValidatorHash = validatorHash . distributionValidator
-
-distributionValidatorAddress :: DistributionValidatorParams -> Address
-distributionValidatorAddress = validatorAddress . distributionTypedValidator
-
-distributionValidatorAddresses :: DistributionValidatorParams -> [Address]
-distributionValidatorAddresses []         = []
-distributionValidatorAddresses par@(_:ds) = distributionValidatorAddress par : distributionValidatorAddresses ds
-
 distributionTx :: DistributionValidatorParams -> TransactionBuilder ()
 distributionTx [] = failTx "distributionTx" "empty DistributionValidatorParams" Nothing $> ()
 distributionTx d@((utxoScript, utxoPubKey) : d') = do
@@ -48,7 +32,7 @@ distributionTx d@((utxoScript, utxoPubKey) : d') = do
         addrs = distributionValidatorAddresses d
     -- FIX HERE: The next line can cause problems in some cases.
     _ <- utxoSpentScriptTx (\_ o -> noAdaValue (_decoratedTxOutValue o) `geq` noAdaValue val && _decoratedTxOutAddress o `elem` addrs)
-        (\_ o -> unversioned $  fromJust $ _decoratedTxOutValidator o) (const . const $ ())
+        (\_ o -> fromJust $ _decoratedTxOutValidator o) (const . const $ ())
     utxoProducedScriptTx (distributionValidatorHash d') Nothing (txOutValue utxoScript) ()
     let addr = txOutAddress utxoPubKey
     case addr of
@@ -58,19 +42,10 @@ distributionTx d@((utxoScript, utxoPubKey) : d') = do
 
 ------------------------------------- ENCS Minting Policy --------------------------------------
 
-encsCurrencySymbol :: ENCSParams -> CurrencySymbol
-encsCurrencySymbol = scriptCurrencySymbol . encsPolicy
-
-encsAssetClass :: ENCSParams -> AssetClass
-encsAssetClass par = AssetClass (encsCurrencySymbol par, encsTokenName)
-
-encsToken :: ENCSParams -> Value
-encsToken = token . encsAssetClass
-
 encsMintTx :: ENCSParams -> DistributionValidatorParams -> TransactionBuilder ()
 encsMintTx par@(ref, amt) distribution = do
     let v = scale amt (encsToken par)
     _ <- utxoSpentPublicKeyTx (\r _ -> ref == r)
     utxoProducedScriptTx (distributionValidatorHash distribution) Nothing (v + adaValueOf 2) ()
-    tokensMintedTx (encsPolicy par) () v
+    tokensMintedTx (encsPolicyV par) () v
         

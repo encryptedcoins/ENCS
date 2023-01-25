@@ -17,7 +17,6 @@ import           Plutus.V2.Ledger.Api
 import           PlutusTx.Prelude                               hiding ((<$>))
 
 import           ENCOINS.ENCS.OnChain
-import           ENCOINS.ENCS.OffChain                          (encsToken, distributionValidatorAddress)
 import           Utils.Address                                  (bech32ToAddress)
 
 mkDistribution :: ENCSParams -> [(Address, Integer)] -> Integer -> DistributionValidatorParams

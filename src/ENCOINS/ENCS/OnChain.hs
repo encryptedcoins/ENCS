@@ -16,16 +16,19 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
 
-
 module ENCOINS.ENCS.OnChain where
 
-import           Plutus.Script.Utils.V2.Typed.Scripts (ValidatorTypes (..), TypedValidator, mkTypedValidator, mkUntypedValidator)
+import           Ledger.Tokens                   (token)
+import           Ledger.Typed.Scripts            (IsScriptContext(..), Versioned (..), Language (..))
+import           Ledger.Value                    (AssetClass (..))
+import           Plutus.Script.Utils.V2.Address  (mkValidatorAddress)
+import           Plutus.Script.Utils.V2.Scripts  (validatorHash, scriptCurrencySymbol)
 import           Plutus.V2.Ledger.Api
-import           PlutusTx                             (compile, applyCode, liftCode)
+import           PlutusTx                        (compile, applyCode, liftCode)
 import           PlutusTx.Prelude
 
-import           Constraints.OnChain                  (utxoProduced)
-import           Scripts.OneShotCurrency              (mkCurrency, oneShotCurrencyPolicy)
+import           Constraints.OnChain             (utxoProduced)
+import           Scripts.OneShotCurrency         (mkCurrency, oneShotCurrencyPolicy)
 
 ------------------------------------- Distribution Validator --------------------------------------
 
@@ -40,11 +43,6 @@ lovelaceInDistributionUTXOs = 1_500_000
 
 type DistributionValidatorParams = [(TxOut, TxOut)]
 
-data Distributing
-instance ValidatorTypes Distributing where
-  type instance DatumType Distributing = ()
-  type instance RedeemerType Distributing = ()
-
 {-# INLINABLE distributionValidatorCheck #-}
 distributionValidatorCheck :: DistributionValidatorParams -> () -> () -> ScriptContext -> Bool
 distributionValidatorCheck lst _ _ ScriptContext{scriptContextTxInfo=info} = cond0 && cond1
@@ -54,13 +52,23 @@ distributionValidatorCheck lst _ _ ScriptContext{scriptContextTxInfo=info} = con
     cond0 = utxoProduced info (== utxo1)
     cond1 = utxoProduced info (== utxo2)
 
-distributionTypedValidator :: DistributionValidatorParams -> TypedValidator Distributing
-distributionTypedValidator par = mkTypedValidator @Distributing
-    ($$(PlutusTx.compile [|| distributionValidatorCheck ||])
+distributionValidator :: DistributionValidatorParams -> Validator
+distributionValidator par = mkValidatorScript
+    ($$(PlutusTx.compile [|| mkUntypedValidator . distributionValidatorCheck ||])
     `PlutusTx.applyCode` PlutusTx.liftCode par)
-    $$(PlutusTx.compile [|| wrap ||])
-  where
-    wrap = mkUntypedValidator @() @()
+
+distributionValidatorV :: DistributionValidatorParams -> Versioned Validator
+distributionValidatorV = flip Versioned PlutusV2 . distributionValidator
+
+distributionValidatorHash :: DistributionValidatorParams -> ValidatorHash
+distributionValidatorHash = validatorHash . distributionValidator
+
+distributionValidatorAddress :: DistributionValidatorParams -> Address
+distributionValidatorAddress = mkValidatorAddress . distributionValidator
+
+distributionValidatorAddresses :: DistributionValidatorParams -> [Address]
+distributionValidatorAddresses []         = []
+distributionValidatorAddresses par@(_:ds) = distributionValidatorAddress par : distributionValidatorAddresses ds
 
 ------------------------------------- ENCS Minting Policy --------------------------------------
 
@@ -72,3 +80,15 @@ encsTokenName = TokenName emptyByteString
 
 encsPolicy :: ENCSParams -> MintingPolicy
 encsPolicy (ref, amt) = oneShotCurrencyPolicy $ mkCurrency ref [(encsTokenName, amt)]
+
+encsPolicyV :: ENCSParams -> Versioned MintingPolicy
+encsPolicyV = flip Versioned PlutusV2 . encsPolicy
+
+encsCurrencySymbol :: ENCSParams -> CurrencySymbol
+encsCurrencySymbol = scriptCurrencySymbol . encsPolicy
+
+encsAssetClass :: ENCSParams -> AssetClass
+encsAssetClass par = AssetClass (encsCurrencySymbol par, encsTokenName)
+
+encsToken :: ENCSParams -> Value
+encsToken = token . encsAssetClass

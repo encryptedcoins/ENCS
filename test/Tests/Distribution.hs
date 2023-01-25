@@ -20,7 +20,6 @@ import qualified Prelude                          as Haskell
 import           Test.QuickCheck                  (Arbitrary (..))
 
 import           ENCOINS.ENCS.Distribution        (mkDistribution)
-import           ENCOINS.ENCS.OffChain            (encsToken)
 import           ENCOINS.ENCS.OnChain             
 import           Utils.Orphans                    ()
 
