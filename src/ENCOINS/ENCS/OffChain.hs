@@ -32,7 +32,7 @@ distributionTx d@((utxoScript, utxoPubKey) : d') = do
     -- FIX HERE: The next line can cause problems in some cases.
     _ <- utxoSpentScriptTx
         (\_ o -> noAdaValue (_decoratedTxOutValue o) `geq` noAdaValue val && _decoratedTxOutAddress o `elem` addrs)
-        (const . const $ distributionValidatorV d') (const . const $ ())
+        (const . const $ distributionValidatorV d) (const . const $ ())
     utxoProducedScriptTx (distributionValidatorHash d') Nothing (txOutValue utxoScript) ()
     let addr = txOutAddress utxoPubKey
     case addr of
