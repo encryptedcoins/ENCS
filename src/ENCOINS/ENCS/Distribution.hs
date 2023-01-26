@@ -10,6 +10,7 @@
 module ENCOINS.ENCS.Distribution where
 
 import           Data.Bifunctor                         (Bifunctor (..))
+import           Data.Bool                              (bool)
 import           Data.Maybe                             (fromJust)
 import           Data.Text                              (Text)
 import           Ledger.Ada                             (lovelaceValueOf)
@@ -25,12 +26,12 @@ type DistributionFee      = Integer
 type DistributionFeeCount = Integer
 type DistributionParams   = (DistributionFee, DistributionFeeCount)
 
-mkDistribution :: ENCSParams -> [(Address, Integer)] -> DistributionParams -> DistributionValidatorParams
+mkDistribution :: ENCSParams -> [(Address, Integer)] -> DistributionParams -> DistributionValidatorParamsList
 mkDistribution _   []                      _ = []
 mkDistribution par ((addr, n) : lst) (f, k) =
         (
             TxOut
-                (distributionValidatorAddress distribution)
+                (distributionValidatorAddress utxos)
                 (scale m (encsToken par) + adaVal)
                 (OutputDatumHash $ DatumHash $ dataHash $ toBuiltinData ())
                 Nothing,
@@ -44,6 +45,7 @@ mkDistribution par ((addr, n) : lst) (f, k) =
         adaVal       = lovelaceValueOf lovelaceInDistributionUTXOs
         k0           = max (k-1) 0
         distribution = mkDistribution par lst (f, k0)
+        utxos        = bool Nothing (Just $ head distribution) $ null distribution
         m            = sum (map snd lst) + f * k0
 
 processDistribution :: [(Text, Integer)] -> [(Address, Integer)]

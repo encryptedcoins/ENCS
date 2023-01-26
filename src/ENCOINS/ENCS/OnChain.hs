@@ -36,16 +36,16 @@ import           ENCOINS.ENCS.Types              (ENCSRedeemer(..))
 lovelaceInDistributionUTXOs :: Integer
 lovelaceInDistributionUTXOs = 1_500_000
 
-type DistributionValidatorParams = [(TxOut, TxOut)]
+type DistributionValidatorParams     = Maybe (TxOut, TxOut)
+type DistributionValidatorParamsList = [(TxOut, TxOut)]
 
 {-# INLINABLE distributionValidatorCheck #-}
 distributionValidatorCheck :: DistributionValidatorParams -> () -> () -> ScriptContext -> Bool
-distributionValidatorCheck lst _ _ ScriptContext{scriptContextTxInfo=info} = cond0 && cond1
+distributionValidatorCheck (Just (utxo1, utxo2)) _ _ ScriptContext{scriptContextTxInfo=info} = cond0 && cond1
   where
-    (utxo1, utxo2) = head lst
-
     cond0 = utxoProduced info (== utxo1)
     cond1 = utxoProduced info (== utxo2)
+distributionValidatorCheck Nothing _ _ _ = True
 
 distributionValidator :: DistributionValidatorParams -> Validator
 distributionValidator par = mkValidatorScript
@@ -61,9 +61,8 @@ distributionValidatorHash = validatorHash . distributionValidator
 distributionValidatorAddress :: DistributionValidatorParams -> Address
 distributionValidatorAddress = mkValidatorAddress . distributionValidator
 
-distributionValidatorAddresses :: DistributionValidatorParams -> [Address]
-distributionValidatorAddresses []         = []
-distributionValidatorAddresses par@(_:ds) = distributionValidatorAddress par : distributionValidatorAddresses ds
+distributionValidatorAddresses :: DistributionValidatorParamsList -> [Address]
+distributionValidatorAddresses = map (distributionValidatorAddress . Just)
 
 ------------------------------------- ENCS Minting Policy --------------------------------------
 
@@ -75,7 +74,7 @@ encsTokenName = TokenName emptyByteString
 
 encsPolicyCheck :: ENCSParams -> ENCSRedeemer -> ScriptContext -> Bool
 encsPolicyCheck (TxOutRef refId refIdx, amt) Mint
-    ctx@ScriptContext{scriptContextTxInfo=info} = 
+    ctx@ScriptContext{scriptContextTxInfo=info} =
       let cond0 = tokensMinted ctx $ fromList [(encsTokenName, amt)]
           cond1 = spendsOutput info refId refIdx
       in cond0 && cond1

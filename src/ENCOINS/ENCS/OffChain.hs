@@ -10,6 +10,7 @@
 
 module ENCOINS.ENCS.OffChain where
 
+import           Data.Bool                              (bool)
 import           Data.Functor                           (($>), void)
 import           Ledger.Ada                             (lovelaceValueOf)
 import           Ledger.Tx                              (DecoratedTxOut(..), _decoratedTxOutAddress)
@@ -24,15 +25,17 @@ import           Types.Tx                               (TransactionBuilder)
 
 ------------------------------------- Distribution Validator --------------------------------------
 
-distributionTx :: DistributionValidatorParams -> TransactionBuilder ()
+distributionTx :: DistributionValidatorParamsList -> TransactionBuilder ()
 distributionTx [] = failTx "distributionTx" "empty DistributionValidatorParams" Nothing $> ()
 distributionTx d@((utxoScript, utxoPubKey) : d') = do
-    let val  = txOutValue utxoScript + txOutValue utxoPubKey
-        addr = distributionValidatorAddress d
+    let val    = txOutValue utxoScript + txOutValue utxoPubKey
+        utxos  = Just $ head d
+        utxos' = bool Nothing (Just $ head d') $ null d'
+        addr   = distributionValidatorAddress utxos
     void $ utxoSpentScriptTx
         (\_ o -> noAdaValue (_decoratedTxOutValue o) `geq` noAdaValue val && _decoratedTxOutAddress o == addr)
-        (const . const $ distributionValidatorV d) (const . const $ ())
-    utxoProducedScriptTx (distributionValidatorHash d') Nothing (txOutValue utxoScript) ()
+        (const . const $ distributionValidatorV utxos) (const . const $ ())
+    utxoProducedScriptTx (distributionValidatorHash utxos') Nothing (txOutValue utxoScript) ()
     utxoProducedTx (txOutAddress utxoPubKey) (txOutValue utxoPubKey) (Nothing :: Maybe ())
 
 ------------------------------------- ENCS Minting Policy --------------------------------------

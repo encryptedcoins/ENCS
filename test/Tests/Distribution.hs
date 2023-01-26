@@ -34,7 +34,7 @@ data TestArgs = TestArgs
         testArgsENCSParams  :: ENCSParams,
         testArgsAddressList :: [(Address, Integer)],
         testArgsDistParams  :: DistributionParams,
-        testArgsDVP         :: DistributionValidatorParams
+        testArgsDVP         :: DistributionValidatorParamsList
     }
     deriving (Haskell.Show, Haskell.Eq)
 
@@ -73,7 +73,7 @@ instance Arbitrary TestArgs where
 ----------------------------------------------------------------------------------------------------------------------------
 
 -- Check that at every step we have enough tokens locked.
-checkValidatorLock :: ENCSParams -> DistributionValidatorParams -> Bool
+checkValidatorLock :: ENCSParams -> DistributionValidatorParamsList -> Bool
 checkValidatorLock _ [] = True
 checkValidatorLock par ((o, _) : d') = cond && checkValidatorLock par d'
     where
@@ -87,7 +87,7 @@ prop_DistributionValidatorParams (TestArgs par _ _ dvp) = checkValidatorLock par
 ----------------------------------------------------------------------------------------------------------------------------
 
 -- Check that every recipient gets their tokens.
-checkDistributionList :: ENCSParams -> [(Address, Integer)] -> DistributionValidatorParams -> Bool
+checkDistributionList :: ENCSParams -> [(Address, Integer)] -> DistributionValidatorParamsList -> Bool
 checkDistributionList par lst d = all f lst
     where
         adaVal      = lovelaceValueOf lovelaceInDistributionUTXOs
@@ -100,7 +100,7 @@ prop_DistributionList (TestArgs par lst _ dvp) = checkDistributionList par lst d
 ----------------------------------------------------------------------------------------------------------------------------
 
 -- Check that the total ENCS token number is enough to do the distribution.
-checkDistributionTotal :: ENCSParams -> DistributionValidatorParams -> Bool
+checkDistributionTotal :: ENCSParams -> DistributionValidatorParamsList -> Bool
 checkDistributionTotal par@(_, amt) d = scale amt (encsToken par) `geq` noAdaValue (sum (map (txOutValue . snd) d))
 
 prop_DistributionTotal :: TestArgs -> Bool
