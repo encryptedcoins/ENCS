@@ -18,6 +18,7 @@ import           Plutus.V2.Ledger.Api
 import           PlutusTx.Prelude                       hiding ((<$>))
 
 import           ENCOINS.ENCS.OnChain
+import           ENCOINS.ENCS.Types                     (ENCSRedeemer(..))
 import           Constraints.OffChain
 import           Types.Tx                               (TransactionBuilder)
 
@@ -41,4 +42,10 @@ encsMintTx par@(ref, amt) distribution = do
     let v = scale amt (encsToken par)
     _ <- utxoSpentPublicKeyTx (\r _ -> ref == r)
     utxoProducedScriptTx (distributionValidatorHash distribution) Nothing (v + lovelaceValueOf lovelaceInDistributionUTXOs) ()
-    tokensMintedTx (encsPolicyV par) () v
+    tokensMintedTx (encsPolicyV par) Mint v
+
+encsBurnTx :: ENCSParams -> Integer -> TransactionBuilder ()
+encsBurnTx par amt = do
+    let v = scale amt (encsToken par)
+    _ <- utxoSpentPublicKeyTx (\_ o -> _decoratedTxOutValue o `geq` v)
+    tokensMintedTx (encsPolicyV par) (Burn amt) (zero-v)
