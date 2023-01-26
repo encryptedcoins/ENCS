@@ -40,5 +40,5 @@ encsMintTx :: ENCSParams -> DistributionValidatorParams -> TransactionBuilder ()
 encsMintTx par@(ref, amt) distribution = do
     let v = scale amt (encsToken par)
     _ <- utxoSpentPublicKeyTx (\r _ -> ref == r)
-    utxoProducedScriptTx (distributionValidatorHash distribution) Nothing (v + adaValueOf 2) (Nothing :: Maybe ())
+    utxoProducedScriptTx (distributionValidatorHash distribution) Nothing (v + adaValueOf 2) ()
     tokensMintedTx (encsPolicyV par) () v
