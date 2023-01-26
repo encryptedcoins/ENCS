@@ -30,7 +30,7 @@ distributionTx [] = failTx "distributionTx" "empty DistributionValidatorParams" 
 distributionTx d@((utxoScript, utxoPubKey) : d') = do
     let val    = txOutValue utxoScript + txOutValue utxoPubKey
         utxos  = Just $ head d
-        utxos' = bool Nothing (Just $ head d') $ null d'
+        utxos' = bool (Just $ head d') Nothing $ null d'
         addr   = distributionValidatorAddress utxos
     void $ utxoSpentScriptTx
         (\_ o -> noAdaValue (_decoratedTxOutValue o) `geq` noAdaValue val && _decoratedTxOutAddress o == addr)

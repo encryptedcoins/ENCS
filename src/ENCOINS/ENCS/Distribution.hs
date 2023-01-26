@@ -27,7 +27,7 @@ type DistributionFeeCount = Integer
 type DistributionParams   = (DistributionFee, DistributionFeeCount)
 
 mkDistribution :: ENCSParams -> [(Address, Integer)] -> DistributionParams -> DistributionValidatorParamsList
-mkDistribution _   []                      _ = []
+mkDistribution _   []                _      = []
 mkDistribution par ((addr, n) : lst) (f, k) =
         (
             TxOut
@@ -45,7 +45,7 @@ mkDistribution par ((addr, n) : lst) (f, k) =
         adaVal       = lovelaceValueOf lovelaceInDistributionUTXOs
         k0           = max (k-1) 0
         distribution = mkDistribution par lst (f, k0)
-        utxos        = bool Nothing (Just $ head distribution) $ null distribution
+        utxos        = bool (Just $ head distribution) Nothing $ null distribution
         m            = sum (map snd lst) + f * k0
 
 processDistribution :: [(Text, Integer)] -> [(Address, Integer)]
