@@ -19,7 +19,7 @@ import           Prelude                          ((<$>))
 import qualified Prelude                          as Haskell
 import           Test.QuickCheck                  (Arbitrary (..))
 
-import           ENCOINS.ENCS.Distribution        (mkDistribution)
+import           ENCOINS.ENCS.Distribution        (DistributionParams, mkDistribution)
 import           ENCOINS.ENCS.OnChain             
 import           Utils.Orphans                    ()
 
@@ -27,8 +27,8 @@ data TestArgs = TestArgs
     {
         testArgsENCSParams  :: ENCSParams,
         testArgsAddressList :: [(Address, Integer)],
-        testArgsDVP         :: DistributionValidatorParams,
-        testArgsFeePot      :: Integer
+        testArgsDistParams  :: DistributionParams,
+        testArgsDVP         :: DistributionValidatorParams
     }
     deriving (Haskell.Show, Haskell.Eq)
 
@@ -46,18 +46,23 @@ instance Arbitrary TestArgs where
 
         -- Total undistributed ENCS
         v   <- max 0 <$> arbitrary
+
+        -- DistributionParams
+        distFee      <- abs <$> arbitrary
+        distFeeCount <- abs <$> arbitrary
+        let distParams = (distFee, distFeeCount)
         
         -- Total ENCS to distribute
         let amtD = sum (map snd lst)
         -- Total distribution fees
-            amtF = distributionFee * distributionFeeCount
+            amtF = distFee * distFeeCount
         -- ENCSParams
             amt = amtD + amtF + v
             par = (ref, amt)
 
-        let dvp = mkDistribution par lst amtF
+        let dvp = mkDistribution par lst distParams
 
-        return $ TestArgs par lst dvp amtF
+        return $ TestArgs par lst distParams dvp
 
 ----------------------------------------------------------------------------------------------------------------------------
 
@@ -71,7 +76,7 @@ checkValidatorLock par ((o, _) : d') = cond && checkValidatorLock par d'
         cond = noAdaValue val `geq` noAdaValue (sum $ map txOutValue d'')
 
 prop_DistributionValidatorParams :: TestArgs -> Bool
-prop_DistributionValidatorParams (TestArgs par _ dvp _) = checkValidatorLock par dvp
+prop_DistributionValidatorParams (TestArgs par _ _ dvp) = checkValidatorLock par dvp
 
 ----------------------------------------------------------------------------------------------------------------------------
 
@@ -84,7 +89,7 @@ checkDistributionList par lst d = all f lst
         f (addr, m) = any (\o -> o == TxOut addr (scale m (encsToken par) + adaVal) NoOutputDatum Nothing) d'
 
 prop_DistributionList :: TestArgs -> Bool
-prop_DistributionList (TestArgs par lst dvp _) = checkDistributionList par lst dvp
+prop_DistributionList (TestArgs par lst _ dvp) = checkDistributionList par lst dvp
 
 ----------------------------------------------------------------------------------------------------------------------------
 
@@ -93,4 +98,4 @@ checkDistributionTotal :: ENCSParams -> DistributionValidatorParams -> Bool
 checkDistributionTotal par@(_, amt) d = scale amt (encsToken par) `geq` noAdaValue (sum (map (txOutValue . snd) d))
 
 prop_DistributionTotal :: TestArgs -> Bool
-prop_DistributionTotal (TestArgs par _ dvp _) = checkDistributionTotal par dvp
+prop_DistributionTotal (TestArgs par _ _ dvp) = checkDistributionTotal par dvp

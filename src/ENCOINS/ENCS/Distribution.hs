@@ -20,9 +20,13 @@ import           PlutusTx.Prelude                               hiding ((<$>))
 import           ENCOINS.ENCS.OnChain
 import           Utils.Address                                  (bech32ToAddress)
 
-mkDistribution :: ENCSParams -> [(Address, Integer)] -> Integer -> DistributionValidatorParams
+type DistributionFee      = Integer
+type DistributionFeeCount = Integer
+type DistributionParams   = (DistributionFee, DistributionFeeCount)
+
+mkDistribution :: ENCSParams -> [(Address, Integer)] -> DistributionParams -> DistributionValidatorParams
 mkDistribution _   []                      _ = []
-mkDistribution par ((addr, n) : lst) k =
+mkDistribution par ((addr, n) : lst) (f, k) =
         (
             TxOut
                 (distributionValidatorAddress distribution)
@@ -38,8 +42,8 @@ mkDistribution par ((addr, n) : lst) k =
     where
         adaVal       = lovelaceValueOf lovelaceInDistributionUTXOs
         k0           = max (k-1) 0
-        distribution = mkDistribution par lst k0
-        m            = sum (map snd lst) + distributionFee * k0
+        distribution = mkDistribution par lst (f, k0)
+        m            = sum (map snd lst) + f * k0
 
 processDistribution :: [(Text, Integer)] -> [(Address, Integer)]
 processDistribution = map (first (fromJust . bech32ToAddress))

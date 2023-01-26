@@ -10,16 +10,16 @@
 
 module ENCOINS.ENCS.OffChain where
 
-import           Data.Functor                                   (($>), void)
-import           Ledger.Ada                                     (adaValueOf)
-import           Ledger.Tx                                      (DecoratedTxOut(..), _decoratedTxOutAddress)
-import           Ledger.Value                                   (geq, noAdaValue)
+import           Data.Functor                           (($>), void)
+import           Ledger.Ada                             (lovelaceValueOf)
+import           Ledger.Tx                              (DecoratedTxOut(..), _decoratedTxOutAddress)
+import           Ledger.Value                           (geq, noAdaValue)
 import           Plutus.V2.Ledger.Api
-import           PlutusTx.Prelude                               hiding ((<$>))
+import           PlutusTx.Prelude                       hiding ((<$>))
 
 import           ENCOINS.ENCS.OnChain
 import           Constraints.OffChain
-import           Types.Tx                                       (TransactionBuilder)
+import           Types.Tx                               (TransactionBuilder)
 
 ------------------------------------- Distribution Validator --------------------------------------
 
@@ -40,5 +40,5 @@ encsMintTx :: ENCSParams -> DistributionValidatorParams -> TransactionBuilder ()
 encsMintTx par@(ref, amt) distribution = do
     let v = scale amt (encsToken par)
     _ <- utxoSpentPublicKeyTx (\r _ -> ref == r)
-    utxoProducedScriptTx (distributionValidatorHash distribution) Nothing (v + adaValueOf 2) ()
+    utxoProducedScriptTx (distributionValidatorHash distribution) Nothing (v + lovelaceValueOf lovelaceInDistributionUTXOs) ()
     tokensMintedTx (encsPolicyV par) () v

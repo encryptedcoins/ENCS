@@ -33,12 +33,6 @@ import           ENCOINS.ENCS.Types              (ENCSRedeemer(..))
 
 ------------------------------------- Distribution Validator --------------------------------------
 
-distributionFee :: Integer
-distributionFee = 100
-
-distributionFeeCount :: Integer
-distributionFeeCount = 1500
-
 lovelaceInDistributionUTXOs :: Integer
 lovelaceInDistributionUTXOs = 1_500_000
 
@@ -86,7 +80,7 @@ encsPolicyCheck (TxOutRef refId refIdx, amt) Mint
           cond1 = spendsOutput info refId refIdx
       in cond0 && cond1
 encsPolicyCheck _ (Burn amt) ctx =
-      let cond0 = tokensMinted ctx $ fromList [(encsTokenName, -amt)]
+      let cond0 = tokensMinted ctx $ fromList [(encsTokenName, zero-amt)]
           cond1 = amt > 0
       in cond0 && cond1
 
