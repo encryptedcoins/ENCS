@@ -22,13 +22,14 @@ import           Ledger.Tokens                   (token)
 import           Ledger.Typed.Scripts            (IsScriptContext(..), Versioned (..), Language (..))
 import           Ledger.Value                    (AssetClass (..))
 import           Plutus.Script.Utils.V2.Address  (mkValidatorAddress)
+import           Plutus.Script.Utils.V2.Contexts (spendsOutput)
 import           Plutus.Script.Utils.V2.Scripts  (validatorHash, scriptCurrencySymbol)
 import           Plutus.V2.Ledger.Api
 import           PlutusTx                        (compile, applyCode, liftCode)
 import           PlutusTx.Prelude
 
-import           Constraints.OnChain             (utxoProduced)
-import           Scripts.OneShotCurrency         (mkCurrency, oneShotCurrencyPolicy)
+import           Constraints.OnChain             (utxoProduced, tokensMinted)
+import           ENCOINS.ENCS.Types              (ENCSRedeemer(..))
 
 ------------------------------------- Distribution Validator --------------------------------------
 
@@ -78,8 +79,22 @@ type ENCSParams = (TxOutRef, Integer)
 encsTokenName :: TokenName
 encsTokenName = TokenName emptyByteString
 
+encsPolicyCheck :: ENCSParams -> ENCSRedeemer -> ScriptContext -> Bool
+encsPolicyCheck (TxOutRef refId refIdx, amt) Mint
+    ctx@ScriptContext{scriptContextTxInfo=info} = 
+      let cond0 = tokensMinted ctx $ fromList [(encsTokenName, amt)]
+          cond1 = spendsOutput info refId refIdx
+      in cond0 && cond1
+encsPolicyCheck _ (Burn amt) ctx =
+      let cond0 = tokensMinted ctx $ fromList [(encsTokenName, -amt)]
+          cond1 = amt > 0
+      in cond0 && cond1
+
 encsPolicy :: ENCSParams -> MintingPolicy
-encsPolicy (ref, amt) = oneShotCurrencyPolicy $ mkCurrency ref [(encsTokenName, amt)]
+encsPolicy par = mkMintingPolicyScript $
+    $$(PlutusTx.compile [|| mkUntypedMintingPolicy . encsPolicyCheck ||])
+        `PlutusTx.applyCode`
+            PlutusTx.liftCode par
 
 encsPolicyV :: ENCSParams -> Versioned MintingPolicy
 encsPolicyV = flip Versioned PlutusV2 . encsPolicy

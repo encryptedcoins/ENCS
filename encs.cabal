@@ -30,9 +30,10 @@ common lang
 library
     import: lang
     exposed-modules:
+      ENCOINS.ENCS.Distribution
       ENCOINS.ENCS.OffChain
       ENCOINS.ENCS.OnChain
-      ENCOINS.ENCS.Distribution
+      ENCOINS.ENCS.Types
     build-depends:
       base                          >= 4.9 && < 5,
       base16-bytestring                      -any,
