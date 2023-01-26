@@ -9,16 +9,17 @@
 
 module ENCOINS.ENCS.Distribution where
 
-import           Data.Bifunctor                                 (Bifunctor (..))
-import           Data.Maybe                                     (fromJust)
-import           Data.Text                                      (Text)
-import           Ledger.Ada                                     (lovelaceValueOf)
-import           Plutus.Script.Utils.V2.Scripts                 (dataHash)
+import           Data.Bifunctor                         (Bifunctor (..))
+import           Data.Maybe                             (fromJust)
+import           Data.Text                              (Text)
+import           Ledger.Ada                             (lovelaceValueOf)
+import           Plutus.Script.Utils.V2.Scripts         (dataHash)
 import           Plutus.V2.Ledger.Api
-import           PlutusTx.Prelude                               hiding ((<$>))
+import           PlutusTx.Numeric
+import           Prelude                                hiding (Num(..))
 
 import           ENCOINS.ENCS.OnChain
-import           Utils.Address                                  (bech32ToAddress)
+import           Utils.Address                          (bech32ToAddress)
 
 type DistributionFee      = Integer
 type DistributionFeeCount = Integer

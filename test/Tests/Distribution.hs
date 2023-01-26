@@ -9,19 +9,25 @@
 
 module Tests.Distribution where
 
-import           Control.Monad                    (mapM)
-import           Ledger.Ada                       (lovelaceValueOf)
-import           Ledger.Address                   (Address (..))
-import           Ledger.Value                     (geq, noAdaValue)
-import           Plutus.V2.Ledger.Api             (StakingCredential(..), Credential (..), TxOut (..), OutputDatum (..))
-import           PlutusTx.Prelude                 hiding ((<$>), mapM)
-import           Prelude                          ((<$>))
-import qualified Prelude                          as Haskell
-import           Test.QuickCheck                  (Arbitrary (..))
+import           Cardano.Api                    (NetworkId (..), writeFileJSON)
+import           Control.Monad                  (void)
+import           Data.Maybe                     (mapMaybe)
+import           Ledger.Ada                     (lovelaceValueOf)
+import           Ledger.Address                 (Address (..))
+import           Ledger.Value                   (geq, noAdaValue)
+import           Plutus.V2.Ledger.Api           (PubKeyHash(..), Credential (..), StakingCredential(..), TxOut (..), OutputDatum (..))
+import           PlutusTx.Extra.ByteString      (toBytes)
+import           PlutusTx.Numeric
+import           PlutusTx.Prelude               (sha2_256, modulo, sum, takeByteString)
+import           Prelude                        hiding (Num(..), sum)
+import qualified Prelude                        as Haskell
+import           System.Random                  (randomIO, randomRIO)
+import           Test.QuickCheck                (Arbitrary (..))
 
-import           ENCOINS.ENCS.Distribution        (DistributionParams, mkDistribution)
-import           ENCOINS.ENCS.OnChain             
-import           Utils.Orphans                    ()
+import           ENCOINS.ENCS.Distribution      (DistributionParams, mkDistribution)
+import           ENCOINS.ENCS.OnChain
+import           Utils.Address                  (addressToBech32)
+import           Utils.Orphans                  ()
 
 data TestArgs = TestArgs
     {
@@ -51,7 +57,7 @@ instance Arbitrary TestArgs where
         distFee      <- abs <$> arbitrary
         distFeeCount <- abs <$> arbitrary
         let distParams = (distFee, distFeeCount)
-        
+
         -- Total ENCS to distribute
         let amtD = sum (map snd lst)
         -- Total distribution fees
@@ -99,3 +105,16 @@ checkDistributionTotal par@(_, amt) d = scale amt (encsToken par) `geq` noAdaVal
 
 prop_DistributionTotal :: TestArgs -> Bool
 prop_DistributionTotal (TestArgs par _ _ dvp) = checkDistributionTotal par dvp
+
+------------------------------------------ Utility functions -----------------------------------------
+
+generateTestDistribution :: FilePath -> NetworkId -> Integer -> IO ()
+generateTestDistribution file networkId n = do
+    pkhs <- map (PubKeyCredential . PubKeyHash . takeByteString 28 . sha2_256 . toBytes) <$> mapM (const (randomIO :: IO Integer)) [1..n]
+    skhs <- map (Just . StakingHash . PubKeyCredential . PubKeyHash . takeByteString 28 . sha2_256 . toBytes) <$>
+        mapM (const (randomIO :: IO Integer)) [1..n]
+    let addrs = mapMaybe (addressToBech32 networkId) (zipWith Address pkhs skhs)
+    -- distribution list
+    lst <- zip addrs <$> mapM (const $ randomRIO (1::Integer, 10000)) [1::Integer ..n]
+
+    void $ writeFileJSON file lst
