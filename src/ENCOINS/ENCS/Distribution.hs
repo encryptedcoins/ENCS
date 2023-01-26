@@ -13,6 +13,7 @@ import           Data.Bifunctor                                 (Bifunctor (..))
 import           Data.Maybe                                     (fromJust)
 import           Data.Text                                      (Text)
 import           Ledger.Ada                                     (lovelaceValueOf)
+import           Plutus.Script.Utils.V2.Scripts                 (dataHash)
 import           Plutus.V2.Ledger.Api
 import           PlutusTx.Prelude                               hiding ((<$>))
 
@@ -22,8 +23,18 @@ import           Utils.Address                                  (bech32ToAddress
 mkDistribution :: ENCSParams -> [(Address, Integer)] -> Integer -> DistributionValidatorParams
 mkDistribution _   []                      _ = []
 mkDistribution par ((addr, n) : lst) k =
-        (TxOut (distributionValidatorAddress distribution) (scale m (encsToken par) + adaVal) NoOutputDatum Nothing,
-        TxOut addr (scale n (encsToken par) + adaVal) NoOutputDatum Nothing) : distribution
+        (
+            TxOut
+                (distributionValidatorAddress distribution)
+                (scale m (encsToken par) + adaVal)
+                (OutputDatumHash $ DatumHash $ dataHash $ toBuiltinData ())
+                Nothing,
+            TxOut
+                addr
+                (scale n (encsToken par) + adaVal)
+                NoOutputDatum
+                Nothing
+        ) : distribution
     where
         adaVal       = lovelaceValueOf lovelaceInDistributionUTXOs
         k0           = max (k-1) 0

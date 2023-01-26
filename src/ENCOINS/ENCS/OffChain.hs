@@ -31,7 +31,7 @@ distributionTx d@((utxoScript, utxoPubKey) : d') = do
     void $ utxoSpentScriptTx
         (\_ o -> noAdaValue (_decoratedTxOutValue o) `geq` noAdaValue val && _decoratedTxOutAddress o == addr)
         (const . const $ distributionValidatorV d) (const . const $ ())
-    utxoProducedScriptTx (distributionValidatorHash d') Nothing (txOutValue utxoScript) (Nothing :: Maybe ())
+    utxoProducedScriptTx (distributionValidatorHash d') Nothing (txOutValue utxoScript) ()
     utxoProducedTx (txOutAddress utxoPubKey) (txOutValue utxoPubKey) (Nothing :: Maybe ())
 
 ------------------------------------- ENCS Minting Policy --------------------------------------
