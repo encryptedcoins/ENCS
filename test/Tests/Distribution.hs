@@ -9,27 +9,32 @@
 
 module Tests.Distribution where
 
-import           Control.Monad                    (mapM)
-import           Ledger.Ada                       (lovelaceValueOf)
-import           Ledger.Address                   (Address (..))
-import           Ledger.Value                     (geq, noAdaValue)
-import           Plutus.V2.Ledger.Api             (StakingCredential(..), Credential (..), TxOut (..), OutputDatum (..))
-import           PlutusTx.Prelude                 hiding ((<$>), mapM)
-import           Prelude                          ((<$>))
-import qualified Prelude                          as Haskell
-import           Test.QuickCheck                  (Arbitrary (..))
+import           Cardano.Api                    (NetworkId (..), writeFileJSON)
+import           Control.Monad                  (void)
+import           Data.Maybe                     (mapMaybe)
+import           Ledger.Ada                     (lovelaceValueOf)
+import           Ledger.Address                 (Address (..))
+import           Ledger.Value                   (geq, noAdaValue)
+import           Plutus.V2.Ledger.Api           (PubKeyHash(..), Credential (..), StakingCredential(..), TxOut (..), OutputDatum (..))
+import           PlutusTx.Extra.ByteString      (toBytes)
+import           PlutusTx.Numeric
+import           PlutusTx.Prelude               (sha2_256, modulo, sum, takeByteString)
+import           Prelude                        hiding (Num(..), sum)
+import qualified Prelude                        as Haskell
+import           System.Random                  (randomIO, randomRIO)
+import           Test.QuickCheck                (Arbitrary (..))
 
-import           ENCOINS.ENCS.Distribution        (mkDistribution)
-import           ENCOINS.ENCS.OffChain            (encsToken)
-import           ENCOINS.ENCS.OnChain             
-import           Utils.Orphans                    ()
+import           ENCOINS.ENCS.Distribution      (DistributionParams, mkDistribution)
+import           ENCOINS.ENCS.OnChain
+import           Utils.Address                  (addressToBech32)
+import           Utils.Orphans                  ()
 
 data TestArgs = TestArgs
     {
         testArgsENCSParams  :: ENCSParams,
         testArgsAddressList :: [(Address, Integer)],
-        testArgsDVP         :: DistributionValidatorParams,
-        testArgsFeePot      :: Integer
+        testArgsDistParams  :: DistributionParams,
+        testArgsDVP         :: DistributionValidatorParamsList
     }
     deriving (Haskell.Show, Haskell.Eq)
 
@@ -47,23 +52,28 @@ instance Arbitrary TestArgs where
 
         -- Total undistributed ENCS
         v   <- max 0 <$> arbitrary
-        
+
+        -- DistributionParams
+        distFee      <- abs <$> arbitrary
+        distFeeCount <- abs <$> arbitrary
+        let distParams = (distFee, distFeeCount)
+
         -- Total ENCS to distribute
         let amtD = sum (map snd lst)
         -- Total distribution fees
-            amtF = distributionFee * distributionFeeCount
+            amtF = distFee * distFeeCount
         -- ENCSParams
             amt = amtD + amtF + v
             par = (ref, amt)
 
-        let dvp = mkDistribution par lst amtF
+        let dvp = mkDistribution par lst distParams
 
-        return $ TestArgs par lst dvp amtF
+        return $ TestArgs par lst distParams dvp
 
 ----------------------------------------------------------------------------------------------------------------------------
 
 -- Check that at every step we have enough tokens locked.
-checkValidatorLock :: ENCSParams -> DistributionValidatorParams -> Bool
+checkValidatorLock :: ENCSParams -> DistributionValidatorParamsList -> Bool
 checkValidatorLock _ [] = True
 checkValidatorLock par ((o, _) : d') = cond && checkValidatorLock par d'
     where
@@ -72,12 +82,12 @@ checkValidatorLock par ((o, _) : d') = cond && checkValidatorLock par d'
         cond = noAdaValue val `geq` noAdaValue (sum $ map txOutValue d'')
 
 prop_DistributionValidatorParams :: TestArgs -> Bool
-prop_DistributionValidatorParams (TestArgs par _ dvp _) = checkValidatorLock par dvp
+prop_DistributionValidatorParams (TestArgs par _ _ dvp) = checkValidatorLock par dvp
 
 ----------------------------------------------------------------------------------------------------------------------------
 
 -- Check that every recipient gets their tokens.
-checkDistributionList :: ENCSParams -> [(Address, Integer)] -> DistributionValidatorParams -> Bool
+checkDistributionList :: ENCSParams -> [(Address, Integer)] -> DistributionValidatorParamsList -> Bool
 checkDistributionList par lst d = all f lst
     where
         adaVal      = lovelaceValueOf lovelaceInDistributionUTXOs
@@ -85,13 +95,26 @@ checkDistributionList par lst d = all f lst
         f (addr, m) = any (\o -> o == TxOut addr (scale m (encsToken par) + adaVal) NoOutputDatum Nothing) d'
 
 prop_DistributionList :: TestArgs -> Bool
-prop_DistributionList (TestArgs par lst dvp _) = checkDistributionList par lst dvp
+prop_DistributionList (TestArgs par lst _ dvp) = checkDistributionList par lst dvp
 
 ----------------------------------------------------------------------------------------------------------------------------
 
 -- Check that the total ENCS token number is enough to do the distribution.
-checkDistributionTotal :: ENCSParams -> DistributionValidatorParams -> Bool
+checkDistributionTotal :: ENCSParams -> DistributionValidatorParamsList -> Bool
 checkDistributionTotal par@(_, amt) d = scale amt (encsToken par) `geq` noAdaValue (sum (map (txOutValue . snd) d))
 
 prop_DistributionTotal :: TestArgs -> Bool
-prop_DistributionTotal (TestArgs par _ dvp _) = checkDistributionTotal par dvp
+prop_DistributionTotal (TestArgs par _ _ dvp) = checkDistributionTotal par dvp
+
+------------------------------------------ Utility functions -----------------------------------------
+
+generateTestDistribution :: FilePath -> NetworkId -> Integer -> IO ()
+generateTestDistribution file networkId n = do
+    pkhs <- map (PubKeyCredential . PubKeyHash . takeByteString 28 . sha2_256 . toBytes) <$> mapM (const (randomIO :: IO Integer)) [1..n]
+    skhs <- map (Just . StakingHash . PubKeyCredential . PubKeyHash . takeByteString 28 . sha2_256 . toBytes) <$>
+        mapM (const (randomIO :: IO Integer)) [1..n]
+    let addrs = mapMaybe (addressToBech32 networkId) (zipWith Address pkhs skhs)
+    -- distribution list
+    lst <- zip addrs <$> mapM (const $ randomRIO (1::Integer, 10000)) [1::Integer ..n]
+
+    void $ writeFileJSON file lst

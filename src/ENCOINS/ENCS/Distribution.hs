@@ -9,27 +9,44 @@
 
 module ENCOINS.ENCS.Distribution where
 
-import           Data.Bifunctor                                 (Bifunctor (..))
-import           Data.Maybe                                     (fromJust)
-import           Data.Text                                      (Text)
-import           Ledger.Ada                                     (lovelaceValueOf)
+import           Data.Bifunctor                         (Bifunctor (..))
+import           Data.Bool                              (bool)
+import           Data.Maybe                             (fromJust)
+import           Data.Text                              (Text)
+import           Ledger.Ada                             (lovelaceValueOf)
+import           Plutus.Script.Utils.V2.Scripts         (dataHash)
 import           Plutus.V2.Ledger.Api
-import           PlutusTx.Prelude                               hiding ((<$>))
+import           PlutusTx.Numeric
+import           Prelude                                hiding (Num(..))
 
 import           ENCOINS.ENCS.OnChain
-import           ENCOINS.ENCS.OffChain                          (encsToken, distributionValidatorAddress)
-import           Utils.Address                                  (bech32ToAddress)
+import           Utils.Address                          (bech32ToAddress)
 
-mkDistribution :: ENCSParams -> [(Address, Integer)] -> Integer -> DistributionValidatorParams
-mkDistribution _   []                      _ = []
-mkDistribution par ((addr, n) : lst) k =
-        (TxOut (distributionValidatorAddress distribution) (scale m (encsToken par) + adaVal) NoOutputDatum Nothing,
-        TxOut addr (scale n (encsToken par) + adaVal) NoOutputDatum Nothing) : distribution
+type DistributionFee      = Integer
+type DistributionFeeCount = Integer
+type DistributionParams   = (DistributionFee, DistributionFeeCount)
+
+mkDistribution :: ENCSParams -> [(Address, Integer)] -> DistributionParams -> DistributionValidatorParamsList
+mkDistribution _   []                _      = []
+mkDistribution par ((addr, n) : lst) (f, k) =
+        (
+            TxOut
+                (distributionValidatorAddress utxos)
+                (scale m (encsToken par) + adaVal)
+                (OutputDatumHash $ DatumHash $ dataHash $ toBuiltinData ())
+                Nothing,
+            TxOut
+                addr
+                (scale n (encsToken par) + adaVal)
+                NoOutputDatum
+                Nothing
+        ) : distribution
     where
         adaVal       = lovelaceValueOf lovelaceInDistributionUTXOs
         k0           = max (k-1) 0
-        distribution = mkDistribution par lst k0
-        m            = sum (map snd lst) + distributionFee * k0
+        distribution = mkDistribution par lst (f, k0)
+        utxos        = bool (Just $ head distribution) Nothing $ null distribution
+        m            = sum (map snd lst) + f * k0
 
 processDistribution :: [(Text, Integer)] -> [(Address, Integer)]
 processDistribution = map (first (fromJust . bech32ToAddress))

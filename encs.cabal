@@ -3,7 +3,9 @@ cabal-version:      3.0
 name:               encs
 version:            0.1.0.0
 
-maintainer:         encoins.crypto@ud.me
+author:             Vladimir Sinyakov
+                    Grigory Petrov
+maintainer:         team@encoins.io
 
 -- Plutus language settings
 common lang
@@ -28,9 +30,10 @@ common lang
 library
     import: lang
     exposed-modules:
+      ENCOINS.ENCS.Distribution
       ENCOINS.ENCS.OffChain
       ENCOINS.ENCS.OnChain
-      ENCOINS.ENCS.Distribution
+      ENCOINS.ENCS.Types
     build-depends:
       base                          >= 4.9 && < 5,
       base16-bytestring                      -any,
@@ -54,13 +57,13 @@ library
       mtl                                    -any,
       openapi3                               -any,
       optparse-applicative                   -any,
-      -- playground-common                      -any,
       plutus-apps-extra                      -any,
       plutus-contract                        -any,
       plutus-chain-index                     -any,
       plutus-chain-index-core                -any,
       plutus-tx-plugin                       -any,
       plutus-tx                              -any,
+      plutus-tx-extra                        -any,
       plutus-ledger                          -any,
       plutus-ledger-api                      -any,
       plutus-ledger-constraints              -any,
@@ -74,7 +77,6 @@ library
       serialise                              -any,
       text                                   -any,
       uuid                                   -any
-
     hs-source-dirs: src
 
 test-suite encs-test
@@ -106,6 +108,7 @@ test-suite encs-test
     plutus-chain-index-core                -any,
     plutus-tx-plugin                       -any,
     plutus-tx                              -any,
+    plutus-tx-extra                        -any,
     plutus-ledger                          -any,
     plutus-ledger-api                      -any,
     plutus-ledger-constraints              -any,

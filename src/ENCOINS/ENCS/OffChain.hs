@@ -10,68 +10,45 @@
 
 module ENCOINS.ENCS.OffChain where
 
-import           Data.Functor                                   (($>))
-import           Ledger                                         (PaymentPubKeyHash (PaymentPubKeyHash), stakingCredential, Language (PlutusV2))
-import           Ledger.Ada                                     (adaValueOf)
-import           Ledger.Tokens                                  (token)
-import           Ledger.Tx                                      (DecoratedTxOut(..), Versioned (..), _decoratedTxOutAddress)
-import           Ledger.Value                                   (AssetClass (..), geq, noAdaValue)
-import           Plutus.Script.Utils.V2.Scripts                 (validatorHash, scriptCurrencySymbol)
-import           Plutus.Script.Utils.V2.Typed.Scripts           (validatorScript, validatorAddress)
+import           Data.Bool                              (bool)
+import           Data.Functor                           (($>), void)
+import           Ledger.Ada                             (lovelaceValueOf)
+import           Ledger.Tx                              (DecoratedTxOut(..), _decoratedTxOutAddress)
+import           Ledger.Value                           (geq, noAdaValue)
 import           Plutus.V2.Ledger.Api
-import           PlutusTx.Prelude                               hiding ((<$>))
+import           PlutusTx.Prelude                       hiding ((<$>))
 
 import           ENCOINS.ENCS.OnChain
+import           ENCOINS.ENCS.Types                     (ENCSRedeemer(..))
 import           Constraints.OffChain
-import           Types.Tx                                       (TransactionBuilder)
+import           Types.Tx                               (TransactionBuilder)
 
 ------------------------------------- Distribution Validator --------------------------------------
 
-distributionValidator :: DistributionValidatorParams -> Validator
-distributionValidator = validatorScript . distributionTypedValidator
-
-distributionValidatorHash :: DistributionValidatorParams -> ValidatorHash
-distributionValidatorHash = validatorHash . distributionValidator
-
-distributionValidatorAddress :: DistributionValidatorParams -> Address
-distributionValidatorAddress = validatorAddress . distributionTypedValidator
-
-distributionValidatorAddresses :: DistributionValidatorParams -> [Address]
-distributionValidatorAddresses []         = []
-distributionValidatorAddresses par@(_:ds) = distributionValidatorAddress par : distributionValidatorAddresses ds
-
-distributionTx :: DistributionValidatorParams -> TransactionBuilder ()
+distributionTx :: DistributionValidatorParamsList -> TransactionBuilder ()
 distributionTx [] = failTx "distributionTx" "empty DistributionValidatorParams" Nothing $> ()
 distributionTx d@((utxoScript, utxoPubKey) : d') = do
-    let val   = txOutValue utxoScript + txOutValue utxoPubKey
-        addrs = distributionValidatorAddresses d
-    -- FIX HERE: The next line can cause problems in some cases.
-    _ <- utxoSpentScriptTx 
-        (\_ o -> noAdaValue (_decoratedTxOutValue o) `geq` noAdaValue val && _decoratedTxOutAddress o `elem` addrs)
-        (const . const $ (`Versioned` PlutusV2) $ distributionValidator d) 
-        (const . const $ ())
-    utxoProducedScriptTx (distributionValidatorHash d') Nothing (txOutValue utxoScript) ()
-    let addr = txOutAddress utxoPubKey
-    case addr of
-        Address (PubKeyCredential pkh) _ ->
-            utxoProducedPublicKeyTx (PaymentPubKeyHash pkh) (stakingCredential addr) (txOutValue utxoPubKey) (Nothing :: Maybe ())
-        _ -> failTx "distributionTx" "Address doesn't has a PubKeyCredential" Nothing $> ()
+    let val    = txOutValue utxoScript + txOutValue utxoPubKey
+        utxos  = Just $ head d
+        utxos' = bool (Just $ head d') Nothing $ null d'
+        addr   = distributionValidatorAddress utxos
+    void $ utxoSpentScriptTx
+        (\_ o -> noAdaValue (_decoratedTxOutValue o) `geq` noAdaValue val && _decoratedTxOutAddress o == addr)
+        (const . const $ distributionValidatorV utxos) (const . const $ ())
+    utxoProducedScriptTx (distributionValidatorHash utxos') Nothing (txOutValue utxoScript) ()
+    utxoProducedTx (txOutAddress utxoPubKey) (txOutValue utxoPubKey) (Nothing :: Maybe ())
 
 ------------------------------------- ENCS Minting Policy --------------------------------------
-
-encsCurrencySymbol :: ENCSParams -> CurrencySymbol
-encsCurrencySymbol = scriptCurrencySymbol . encsPolicy
-
-encsAssetClass :: ENCSParams -> AssetClass
-encsAssetClass par = AssetClass (encsCurrencySymbol par, encsTokenName)
-
-encsToken :: ENCSParams -> Value
-encsToken = token . encsAssetClass
 
 encsMintTx :: ENCSParams -> DistributionValidatorParams -> TransactionBuilder ()
 encsMintTx par@(ref, amt) distribution = do
     let v = scale amt (encsToken par)
     _ <- utxoSpentPublicKeyTx (\r _ -> ref == r)
-    utxoProducedScriptTx (distributionValidatorHash distribution) Nothing (v + adaValueOf 2) ()
-    tokensMintedTx ((`Versioned` PlutusV2) $ encsPolicy par) () v
-        
+    utxoProducedScriptTx (distributionValidatorHash distribution) Nothing (v + lovelaceValueOf lovelaceInDistributionUTXOs) ()
+    tokensMintedTx (encsPolicyV par) Mint v
+
+encsBurnTx :: ENCSParams -> Integer -> TransactionBuilder ()
+encsBurnTx par amt = do
+    let v = scale amt (encsToken par)
+    _ <- utxoSpentPublicKeyTx (\_ o -> _decoratedTxOutValue o `geq` v)
+    tokensMintedTx (encsPolicyV par) (Burn amt) (zero-v)
