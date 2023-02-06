@@ -1,33 +1,23 @@
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric  #-}
-{-# LANGUAGE TupleSections  #-}
-
 module Tests.Distribution where
 
-import           Cardano.Api               (NetworkId (..), StakeAddress, writeFileJSON)
+import           Cardano.Api               (NetworkId (..), writeFileJSON)
 import           Control.Monad             (void)
-import           Data.Aeson                (FromJSON, ToJSON, eitherDecodeFileStrict)
-import           Data.Function             (on)
-import           Data.List                 (sortBy)
 import           Data.Maybe                (mapMaybe)
-import           Data.Ord                  (Down (..))
-import           Data.Tuple                (swap)
-import           ENCOINS.ENCS.Distribution (DistributionParams, mkDistribution)
-import           ENCOINS.ENCS.OnChain
-import           GHC.Generics              (Generic)
-import           IO.Blockfrost             (getAddressFromStakeAddress)
 import           Ledger.Ada                (lovelaceValueOf)
 import           Ledger.Address            (Address (..))
 import           Ledger.Value              (geq, noAdaValue)
 import           Plutus.V2.Ledger.Api      (Credential (..), OutputDatum (..), PubKeyHash (..), StakingCredential (..),
                                             TxOut (..))
-import           PlutusTx.Extra.ByteString (toBytes)
 import           PlutusTx.Numeric
 import           PlutusTx.Prelude          (modulo, sha2_256, sum, takeByteString)
 import           Prelude                   hiding (Num (..), sum)
 import qualified Prelude                   as Haskell
 import           System.Random             (randomIO, randomRIO)
 import           Test.QuickCheck           (Arbitrary (..))
+
+import           ENCOINS.ENCS.Distribution (DistributionParams, mkDistribution)
+import           ENCOINS.ENCS.OnChain
+import           PlutusTx.Extra.ByteString (toBytes)
 import           Utils.Address             (addressToBech32)
 import           Utils.Orphans             ()
 
@@ -120,15 +110,3 @@ generateTestDistribution file networkId n = do
     lst <- zip addrs <$> mapM (const $ randomRIO (1::Integer, 10000)) [1::Integer ..n]
 
     void $ writeFileJSON file lst
-
-data UnpreparedDistribution = UnpreparedDistribution
-    { addressC :: StakeAddress
-    , rewardC  :: Double
-    } deriving (Show, Generic, FromJSON, ToJSON)
-
-prepareDistribution :: NetworkId -> FilePath -> FilePath -> IO ()
-prepareDistribution networkId from to = do
-    lst <- sortBy (compare `on` Down . rewardC) <$> (eitherDecodeFileStrict from >>= either fail pure)
-    preparedD <- mapM (\d -> fmap swap . sequence . (rewardC d,) . (>>= addressToBech32 networkId) 
-        <$> getAddressFromStakeAddress (addressC d)) lst
-    void $ writeFileJSON to $ sequence preparedD

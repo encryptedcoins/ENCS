@@ -5,7 +5,6 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE NoImplicitPrelude          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE TypeFamilies               #-}
 
 module ENCOINS.ENCS.Distribution where
@@ -20,10 +19,7 @@ import           Plutus.V2.Ledger.Api
 import           PlutusTx.Numeric
 import           Prelude                                hiding (Num (..))
 
-import qualified Cardano.Api
-import           Control.Monad                          (zipWithM)
 import           ENCOINS.ENCS.OnChain
-import           IO.Blockfrost                          (verifyAsset)
 import           Utils.Address                          (bech32ToAddress)
 
 type DistributionFee      = Integer
@@ -54,8 +50,3 @@ mkDistribution par ((addr, n) : lst) (f, k) =
 
 processDistribution :: [(Text, Integer)] -> [(Address, Integer)]
 processDistribution = map (first (fromJust . bech32ToAddress))
-
-verifyDistribution :: ENCSParams -> [(Address, Integer)] -> IO (Either Address [(Address, Integer, Cardano.Api.TxId)])
-verifyDistribution par d = do
-    txIds <- mapM (\(address, amt) -> verifyAsset (encsPolicyHash par) amt address) d
-    pure $ zipWithM (\(address, amt) mbTxId -> maybe (Left address) (Right . (address, amt,)) mbTxId) d txIds
