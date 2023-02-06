@@ -23,7 +23,7 @@ import           Ledger.Typed.Scripts            (IsScriptContext(..), Versioned
 import           Ledger.Value                    (AssetClass (..))
 import           Plutus.Script.Utils.V2.Address  (mkValidatorAddress)
 import           Plutus.Script.Utils.V2.Contexts (spendsOutput)
-import           Plutus.Script.Utils.V2.Scripts  (validatorHash, scriptCurrencySymbol)
+import           Plutus.Script.Utils.V2.Scripts  (validatorHash, scriptCurrencySymbol, mintingPolicyHash)
 import           Plutus.V2.Ledger.Api
 import           PlutusTx                        (compile, applyCode, liftCode)
 import           PlutusTx.Prelude
@@ -91,6 +91,9 @@ encsPolicy par = mkMintingPolicyScript $
 
 encsPolicyV :: ENCSParams -> Versioned MintingPolicy
 encsPolicyV = flip Versioned PlutusV2 . encsPolicy
+
+encsPolicyHash :: ENCSParams -> MintingPolicyHash
+encsPolicyHash = mintingPolicyHash . encsPolicy
 
 encsCurrencySymbol :: ENCSParams -> CurrencySymbol
 encsCurrencySymbol = scriptCurrencySymbol . encsPolicy
