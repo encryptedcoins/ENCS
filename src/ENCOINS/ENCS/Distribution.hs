@@ -20,7 +20,7 @@ import           PlutusTx.Numeric
 import           Prelude                                hiding (Num (..))
 
 import           ENCOINS.ENCS.OnChain
-import           Utils.Address                          (bech32ToAddress)
+import           PlutusAppsExtra.Utils.Address          (bech32ToAddress)
 
 type DistributionFee      = Integer
 type DistributionFeeCount = Integer

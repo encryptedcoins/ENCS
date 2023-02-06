@@ -12,21 +12,21 @@
 
 module ENCOINS.ENCS.Distribution.IO where
 
-import           Cardano.Api               (NetworkId (..), StakeAddress, writeFileJSON)
+import           Cardano.Api                      (NetworkId (..), StakeAddress, writeFileJSON)
 import qualified Cardano.Api
-import           Control.Monad             (void, zipWithM)
-import           Data.Aeson                (FromJSON, ToJSON, eitherDecodeFileStrict)
-import           Data.Function             (on)
-import           Data.List                 (sortBy)
-import           Data.Ord                  (Down (..))
-import           Data.Tuple                (swap)
-import           GHC.Generics              (Generic)
-import           Ledger.Address            (Address (..))
-import           Prelude                   hiding (Num (..), sum)
+import           Control.Monad                    (void, zipWithM)
+import           Data.Aeson                       (FromJSON, ToJSON, eitherDecodeFileStrict)
+import           Data.Function                    (on)
+import           Data.List                        (sortBy)
+import           Data.Ord                         (Down (..))
+import           Data.Tuple                       (swap)
+import           GHC.Generics                     (Generic)
+import           Ledger.Address                   (Address (..))
+import           Prelude                          hiding (Num (..), sum)
 
-import           ENCOINS.ENCS.OnChain      (ENCSParams, encsPolicyHash)
-import           IO.Blockfrost             (getAddressFromStakeAddress, verifyAsset)
-import           Utils.Address             (addressToBech32)
+import           ENCOINS.ENCS.OnChain             (ENCSParams, encsCurrencySymbol, encsTokenName)
+import           PlutusAppsExtra.IO.Blockfrost    (getAddressFromStakeAddress, verifyAsset)
+import           PlutusAppsExtra.Utils.Address    (addressToBech32)
 
 data RawDistribution = RawDistribution
     { addressC :: StakeAddress
@@ -42,5 +42,5 @@ prepareDistribution networkId from to = do
 
 verifyDistribution :: ENCSParams -> [(Address, Integer)] -> IO (Either Address [(Address, Integer, Cardano.Api.TxId)])
 verifyDistribution par d = do
-    txIds <- mapM (\(address, amt) -> verifyAsset (encsPolicyHash par) amt address) d
+    txIds <- mapM (\(address, amt) -> verifyAsset (encsCurrencySymbol par) encsTokenName amt address) d
     pure $ zipWithM (\(address, amt) mbTxId -> maybe (Left address) (Right . (address, amt,)) mbTxId) d txIds
