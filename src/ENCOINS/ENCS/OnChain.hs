@@ -18,18 +18,18 @@
 
 module ENCOINS.ENCS.OnChain where
 
-import           Ledger.Tokens                   (token)
-import           Ledger.Typed.Scripts            (IsScriptContext(..), Versioned (..), Language (..))
-import           Ledger.Value                    (AssetClass (..))
-import           Plutus.Script.Utils.V2.Address  (mkValidatorAddress)
-import           Plutus.Script.Utils.V2.Contexts (spendsOutput)
-import           Plutus.Script.Utils.V2.Scripts  (validatorHash, scriptCurrencySymbol, mintingPolicyHash)
+import           Ledger.Tokens                         (token)
+import           Ledger.Typed.Scripts                  (IsScriptContext(..), Versioned (..), Language (..))
+import           Ledger.Value                          (AssetClass (..))
+import           Plutus.Script.Utils.V2.Address        (mkValidatorAddress)
+import           Plutus.Script.Utils.V2.Contexts       (spendsOutput)
+import           Plutus.Script.Utils.V2.Scripts        (validatorHash, scriptCurrencySymbol)
 import           Plutus.V2.Ledger.Api
-import           PlutusTx                        (compile, applyCode, liftCode)
+import           PlutusTx                              (compile, applyCode, liftCode)
 import           PlutusTx.Prelude
 
-import           Constraints.OnChain             (utxoProduced, tokensMinted)
-import           ENCOINS.ENCS.Types              (ENCSRedeemer(..))
+import           PlutusAppsExtra.Constraints.OnChain   (utxoProduced, tokensMinted)
+import           ENCOINS.ENCS.Types                    (ENCSRedeemer(..))
 
 ------------------------------------- Distribution Validator --------------------------------------
 
@@ -91,9 +91,6 @@ encsPolicy par = mkMintingPolicyScript $
 
 encsPolicyV :: ENCSParams -> Versioned MintingPolicy
 encsPolicyV = flip Versioned PlutusV2 . encsPolicy
-
-encsPolicyH :: ENCSParams -> MintingPolicyHash
-encsPolicyH = mintingPolicyHash . encsPolicy
 
 encsCurrencySymbol :: ENCSParams -> CurrencySymbol
 encsCurrencySymbol = scriptCurrencySymbol . encsPolicy

@@ -20,8 +20,8 @@ import           PlutusTx.Prelude                       hiding ((<$>))
 
 import           ENCOINS.ENCS.OnChain
 import           ENCOINS.ENCS.Types                     (ENCSRedeemer(..))
-import           Constraints.OffChain
-import           Types.Tx                               (TransactionBuilder)
+import           PlutusAppsExtra.Constraints.OffChain
+import           PlutusAppsExtra.Types.Tx               (TransactionBuilder)
 
 ------------------------------------- Distribution Validator --------------------------------------
 
