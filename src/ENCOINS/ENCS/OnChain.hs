@@ -70,7 +70,7 @@ type ENCSParams = (TxOutRef, Integer)
 
 {-# INLINABLE encsTokenName #-}
 encsTokenName :: TokenName
-encsTokenName = TokenName emptyByteString
+encsTokenName = TokenName "ENCS"
 
 encsPolicyCheck :: ENCSParams -> ENCSRedeemer -> ScriptContext -> Bool
 encsPolicyCheck (TxOutRef refId refIdx, amt) Mint

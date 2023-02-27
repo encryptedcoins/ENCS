@@ -11,7 +11,7 @@
 module Main where
 
 import           Cardano.Api                (NetworkId (..), NetworkMagic(..))
-import           Prelude                          
+import           Prelude
 import           Test.QuickCheck            (quickCheck)
 
 import           Tests.Distribution
