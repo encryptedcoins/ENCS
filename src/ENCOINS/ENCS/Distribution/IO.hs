@@ -12,7 +12,7 @@
 
 module ENCOINS.ENCS.Distribution.IO where
 
-import           Cardano.Api                      (NetworkId (..), StakeAddress, writeFileJSON)
+import           Cardano.Api                      (NetworkId (..), StakeAddress, writeFileJSON, TxId)
 import qualified Cardano.Api
 import           Control.Monad                    (void, zipWithM)
 import           Data.Aeson                       (FromJSON, ToJSON, eitherDecodeFileStrict)
@@ -25,7 +25,7 @@ import           Ledger.Address                   (Address (..))
 import           Prelude                          hiding (Num (..), sum)
 
 import           ENCOINS.ENCS.OnChain             (ENCSParams, encsCurrencySymbol, encsTokenName)
-import           PlutusAppsExtra.IO.Blockfrost    (getAddressFromStakeAddress, verifyAsset)
+import           PlutusAppsExtra.IO.Blockfrost    (getAddressFromStakeAddress, verifyAssetFast)
 import           PlutusAppsExtra.Utils.Address    (addressToBech32)
 
 data RawDistribution = RawDistribution
@@ -40,7 +40,14 @@ prepareDistribution networkId from to = do
         <$> getAddressFromStakeAddress (addressC d)) lst
     void $ writeFileJSON to $ sequence preparedD
 
-verifyDistribution :: ENCSParams -> [(Address, Integer)] -> IO (Either Address [(Address, Integer, Cardano.Api.TxId)])
-verifyDistribution par d = do
-    txIds <- mapM (\(address, amt) -> verifyAsset (encsCurrencySymbol par) encsTokenName amt address) d
-    pure $ zipWithM (\(address, amt) mbTxId -> maybe (Left address) (Right . (address, amt,)) mbTxId) d txIds
+-- verifyDistribution :: ENCSParams -> [(Address, Integer)] -> IO (Either Address [(Address, Integer, Cardano.Api.TxId)])
+-- verifyDistribution par d = do
+--     txIds <- mapM (\(address, amt) -> verifyAsset (encsCurrencySymbol par) encsTokenName amt address) d
+--     pure $ zipWithM (\(address, amt) mbTxId -> maybe (Left address) (Right . (address, amt,)) mbTxId) d txIds
+
+verifyDistribution 
+    :: ENCSParams 
+    -> [(Address, Integer)]
+    -> Maybe ([(Address, Integer, TxId)] -> IO ()) -- Function to save intermidiate results
+    -> IO [Either Address (Address, Integer, TxId)]
+verifyDistribution par = verifyAssetFast (encsCurrencySymbol par) encsTokenName
