@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE NoImplicitPrelude          #-}
+{-# LANGUAGE NumericUnderscores         #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE TypeFamilies               #-}
@@ -27,6 +28,8 @@ import           Prelude                          hiding (Num (..), sum)
 import           ENCOINS.ENCS.OnChain             (ENCSParams, encsCurrencySymbol, encsTokenName)
 import           PlutusAppsExtra.IO.Blockfrost    (getAddressFromStakeAddress, verifyAsset)
 import           PlutusAppsExtra.Utils.Address    (addressToBech32)
+import Data.Maybe (fromJust)
+import Prelude (sum, (*))
 
 data RawDistribution = RawDistribution
     { addressC :: StakeAddress
@@ -36,11 +39,14 @@ data RawDistribution = RawDistribution
 prepareDistribution :: NetworkId -> FilePath -> FilePath -> IO ()
 prepareDistribution networkId from to = do
     lst <- sortBy (compare `on` Down . rewardC) <$> (eitherDecodeFileStrict from >>= either fail pure)
-    preparedD <- mapM (\d -> fmap swap . sequence . (rewardC d,) . (>>= addressToBech32 networkId) 
-        <$> getAddressFromStakeAddress (addressC d)) lst
-    void $ writeFileJSON to $ sequence preparedD
+    preparedD <- mapM (\d -> fmap swap . sequence . (ceiling $ (*) 1_000_000 $ rewardC d :: Integer,) . (>>= addressToBech32 networkId) 
+        <$> getAddressFromStakeAddress networkId (addressC d)) lst
+    let dist = sequence preparedD
+    void $ writeFileJSON to dist
+    void $ writeFileJSON "dist_sorted.json" lst
+    print $ sum $ map snd $ fromJust dist
 
-verifyDistribution :: ENCSParams -> [(Address, Integer)] -> IO (Either Address [(Address, Integer, Cardano.Api.TxId)])
-verifyDistribution par d = do
-    txIds <- mapM (\(address, amt) -> verifyAsset (encsCurrencySymbol par) encsTokenName amt address) d
+verifyDistribution :: NetworkId -> ENCSParams -> [(Address, Integer)] -> IO (Either Address [(Address, Integer, Cardano.Api.TxId)])
+verifyDistribution networkId par d = do
+    txIds <- mapM (\(address, amt) -> verifyAsset networkId (encsCurrencySymbol par) encsTokenName amt address) d
     pure $ zipWithM (\(address, amt) mbTxId -> maybe (Left address) (Right . (address, amt,)) mbTxId) d txIds
